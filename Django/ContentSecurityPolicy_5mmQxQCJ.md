@@ -1,19 +1,19 @@
-# Securing Your Website
+# Securing Your Website a Content Security Policy
 
 ## Introduction
 
-This article concentrates on the "Content Security Policy" response header.  There are other headers as well dealing with security but given that security is a very broad area, one thing at a time!
+This article concentrates on the "Content Security Policy"(CSP) response header.  There are other headers as well dealing with security but given that security is a very broad area, one thing at a time!
 
-## Overview and better reading material
-Because modern websites use and pull in resources from servers other then your own, having a CSP header is a good way to whitelist from where and what type of resource is allowed along with, if relevant, what it is allowed to do.  A good starting point for CSP ( and many other topics ) tends to be Mozilla.  I would start of by reading [Mozilla's CSP page](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP).  If you need a broader security overview, I would also read[Mozilla's Security Guidelines](https://infosec.mozilla.org/guidelines/web_security.html) which handily also provides a cheat sheet listing different guidelines, their impact in terms of benefit and also a difficulty rate in terms of implementation.
+## Overview and additional reading material
+Because modern websites use and pull in resources from servers other then your own, having a CSP header is a good way to whitelist from where and what type of resource is allowed along with, if relevant, what it is allowed to do.  A good starting point for CSP ( and many other topics ) tends to be Mozilla.  I would start of by reading [Mozilla's CSP page](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP).  If you need a broader security overview, I would also read [Mozilla's Security Guidelines](https://infosec.mozilla.org/guidelines/web_security.html) which handily also provides a cheat sheet listing different components, their impact in terms of benefit and also a difficulty rate in terms of implementation.
 
 If you really want to take it to the next level, you can also read [W3C's CSP Level3 - technical draft ](https://www.w3.org/TR/CSP3/).  
 
-The main purpose of have a CSP header is to reduce the risk of injection attacks from malicious websites.
+The main purpose of having a CSP header is to reduce the risk of injection attacks from malicious websites.
 
 ### Complexity
 
-Although one can understand and implement the basics of CSP relatively quickly, things do get complicated quickly when mixing external libraries with own scripts.  If someone has experience of how to implement a CSP whereby you need to allow `unsafe-inline` or `unsafe-eval` due to an external library but not have it conflict with your own nonce protected scripts, please do help update this article with an example policy.  
+Although one can understand and implement the basics of CSP relatively quickly, things do get complicated quickly when mixing external libraries with own scripts.  If someone has experience on how to implement a CSP whereby you need to allow `unsafe-inline` or `unsafe-eval` due to an external library but not have it conflict with your own nonce protected scripts, please do help update this article with an example policy.[^1]  
 
 ## Where to implement a CSP
 
@@ -26,7 +26,7 @@ Choice is a great thing.  But choice can also be a pain in the proverbial if it 
 
 ## Django-CSP
 
-I chose to implement CSP using the Django-CSP package.  With implementation at web server level, I think there could be a temptation to given the widest possible privileges just to make sure all your pages render correctly and not have to think about it which, in effect. renders CSP near useless.  
+I chose to implement CSP using the Django-CSP package.  With implementation at web server level, I think there could be a temptation to given the widest possible privileges just to make sure all your pages render correctly and not have to think about it which, in effect, renders CSP near useless.  
 
 ### Installation and Usage
 
@@ -63,7 +63,7 @@ def myview(request):
 
 ### Gotchas
 
-As you can see with the `CSP_DEFAULT_SRC = ["'self'",]` example above, the `self` is first enclosed with single quotes and then double.  This is a must if using reserved values such as `self`, `unsafe-inline`, etc.  Basically, if the value is single quoted in the MDN docs, you should double quote it in django.
+As you can see with the `CSP_DEFAULT_SRC = ["'self'",]` example above, the `self` is first enclosed with single quotes and then double.  This is a must if using reserved CSP values such as `self`, `unsafe-inline`, etc.  Basically, if the value is single quoted in the MDN docs, you should double quote it in django.
 
 
 ### Example Nonce Value
@@ -73,7 +73,10 @@ In your settings you will need to add `CSP_INCLUDE_NONCE_IN = ['script-src',]`
 And then in your html, just add nonce value after inline script tag.
 
 ```html
-\\ Add the nonce value
+\\ Add the nonce value - as per below, the value does not show for security reasons
+\\ The code shown in comment line below is the actual line written is:
+\\ <script nonce="{{request.csp_nonce}}">
+ 
 <script nonce="{{request.csp_nonce}}">
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -86,28 +89,29 @@ And then in your html, just add nonce value after inline script tag.
         
     });
 </script>
+```  
 
-***However***, if you use a library at the same time, that needs the `unsafe-inline` to function, then you cannot have an inline script with a nonce value at the same time. 
+***However***, if you use a library at the same time that needs the `unsafe-inline` to function, then you cannot have an inline script with a nonce value at the same time. I'm happy to be corrected on this statement.  Please consider updating this article if this is not the case[^1]
 
-```
 
 ## Example nginx
 
-As previously mentioned, you can add a CSP policy at the webserver level.  Below is example for Nginx.
+As previously mentioned, you can add a CSP policy at the webserver level too.  Below is example for Nginx.
 
 ```bash
 
 # In prod I had to have everything on one line like so for the setting to work.......
 add_header Content-Security-Policy   "script-src 'self' https://cdn.bokeh.org/bokeh/release/bokeh-2.4.3.min.js 'unsafe-inline' 'unsafe-eval' https://cdn.bokeh.org/bokeh/release/bokeh-widgets-2.4.3.min.js  https://cdn.bokeh.org/bokeh/release/bokeh-tables-2.4.3.min.js https://cdn.bokeh.org/bokeh/release/bokeh-gl-2.4.3.min.js https://cdn.bokeh.org/bokeh/release/bokeh-mathjax-2.4.3.min.js; default-src 'self'; frame-ancestors 'self';  img-src 'self' https://img.icons8.com/color/48/000000/linux--v2.png data:; style-src 'self' https://cdn.jsdelivr.net/npm/bulma@0.9.3/css/bulma.min.css 'unsafe-inline';" always;
 
-# .....whilst in dev it accepted the same thing separated over multiple lines
+# .....whilst in dev it accepted the same thing separated over multiple lines???
  add_header Content-Security-Policy   "script-src 'self' https://cdn.bokeh.org/bokeh/release/bokeh-2.4.3.min.js 'unsafe-inline' 'unsafe-eval' https://cdn.bokeh.org/bokeh/release/bokeh-widgets-2.4.3.min.js  https://cdn.bokeh.org/bokeh/release/bokeh-tables-2.4.3.min.js https://cdn.bokeh.org/bokeh/release/bokeh-gl-2.4.3.min.js https://cdn.bokeh.org/bokeh/release/bokeh-mathjax-2.4.3.min.js;
                                            default-src 'self';
                                            frame-ancestors 'self';
                                            img-src 'self' https://img.icons8.com/color/48/000000/linux--v2.png data:;
                                            style-src 'self' https://cdn.jsdelivr.net/npm/bulma@0.9.3/css/bulma.min.css 'unsafe-inline'";
 
-```
+```  
+
 
 ## Example html
 
@@ -122,13 +126,15 @@ If you want to set the CSP in a  html page directly, use the `<meta>` tag in the
 
 ```
 
+If you implement CSP in multiple locations then, unsurprisingly, you will end up with multiple CSP headers.  
+
 
 ## Resources
 
 [Test your CSP implementation](https://csp-evaluator.withgoogle.com/)
 
 [Django-CSP](https://github.com/mozilla/django-csp) - is maintained and created by Mozilla for the django framework.  
-In my opinion it make it more flexible to implement and maintain as you can target policies for specific pages.  You can install it install via `pip`.
+In my opinion it make it more flexible to implement and maintain as you can target policies for specific pages.  You can install it via `pip`.  You also have the advantage of not having to learn implementations for different webservers.
 
 [Blog - Some guidance/examples on using Django-csp](https://www.laac.dev/blog/content-security-policy-using-django/)  
 [Digital Ocean Community Tutorial on Django-CSP](https://www.digitalocean.com/community/tutorials/how-to-secure-your-django-application-with-a-content-security-policy)
@@ -141,3 +147,5 @@ Diagram showing CSP mappings from wikipedia.  The webserver in the diagram could
 
 
 Ref: 5mmQxQCJ
+
+[^1]: Github link to this article
